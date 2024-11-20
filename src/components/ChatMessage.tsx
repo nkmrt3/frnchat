@@ -1,6 +1,10 @@
 import React from 'react';
 import { User, Bot } from 'lucide-react';
 import { format } from 'date-fns';
+import ReactMarkdown, { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { materialDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,8 +16,41 @@ interface ChatMessageProps {
   message: Message;
 }
 
+// Define the CodeProps interface explicitly
+interface CodeProps {
+  node?: any;
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
+
+  const components: Components = {
+    code: ({ className, children, ...props }: CodeProps) => {
+      const match = /language-(\w+)/.exec(className || '');
+      const codeString = String(children).replace(/\n$/, '');
+      
+      if (!props.inline && match) {
+        return (
+          <SyntaxHighlighter
+            style={materialDark as any}
+            language={match[1]}
+            PreTag="div"
+          >
+            {codeString}
+          </SyntaxHighlighter>
+        );
+      }
+      
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+  };
 
   return (
     <div className={`flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}>
@@ -30,7 +67,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
         <div className={`rounded-lg px-4 py-2 ${
           isUser ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
         }`}>
-          <p className="text-sm">{message.content}</p>
+          {isUser ? (
+            <p className="text-sm">{message.content}</p>
+          ) : (
+            <div className="markdown-content">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={components}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
         <span className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {format(new Date(message.timestamp), 'HH:mm')}
